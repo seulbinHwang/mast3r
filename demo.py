@@ -19,6 +19,7 @@ import mast3r.utils.path_to_dust3r  # noqa
 from dust3r.demo import set_print_with_timestamp
 
 import matplotlib.pyplot as pl
+
 pl.ion()
 
 torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >= 1.12
@@ -44,8 +45,16 @@ if __name__ == '__main__':
     def get_context(tmp_dir):
         return tempfile.TemporaryDirectory(suffix='_mast3r_gradio_demo') if tmp_dir is None \
             else nullcontext(tmp_dir)
+
     with get_context(args.tmp_dir) as tmpdirname:
         cache_path = os.path.join(tmpdirname, chkpt_tag)
         os.makedirs(cache_path, exist_ok=True)
-        main_demo(cache_path, model, args.device, args.image_size, server_name, args.server_port, silent=args.silent,
-                  share=args.share, gradio_delete_cache=args.gradio_delete_cache)
+        main_demo(cache_path,
+                  model,
+                  args.device,
+                  args.image_size,
+                  server_name,
+                  args.server_port,
+                  silent=args.silent,
+                  share=args.share,
+                  gradio_delete_cache=args.gradio_delete_cache)

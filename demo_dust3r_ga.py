@@ -16,6 +16,7 @@ from dust3r.demo import get_args_parser as dust3r_get_args_parser
 from dust3r.demo import main_demo, set_print_with_timestamp
 
 import matplotlib.pyplot as pl
+
 pl.ion()
 
 torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >= 1.12
@@ -27,7 +28,8 @@ def get_args_parser():
     actions = parser._actions
     for action in actions:
         if action.dest == 'model_name':
-            action.choices.append('MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric')
+            action.choices.append(
+                'MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric')
     # change defaults
     parser.prog = 'mast3r demo'
     return parser
@@ -56,10 +58,17 @@ if __name__ == '__main__':
     try:
         model = AsymmetricMASt3R.from_pretrained(weights_path).to(args.device)
     except Exception as e:
-        model = AsymmetricCroCo3DStereo.from_pretrained(weights_path).to(args.device)
+        model = AsymmetricCroCo3DStereo.from_pretrained(weights_path).to(
+            args.device)
 
     # dust3r will write the 3D model inside tmpdirname
     with tempfile.TemporaryDirectory(suffix='dust3r_gradio_demo') as tmpdirname:
         if not args.silent:
             print('Outputing stuff in', tmpdirname)
-        main_demo(tmpdirname, model, args.device, args.image_size, server_name, args.server_port, silent=args.silent)
+        main_demo(tmpdirname,
+                  model,
+                  args.device,
+                  args.image_size,
+                  server_name,
+                  args.server_port,
+                  silent=args.silent)
