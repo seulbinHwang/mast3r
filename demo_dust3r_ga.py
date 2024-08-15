@@ -10,7 +10,7 @@ import torch
 import tempfile
 
 import mast3r.utils.path_to_dust3r  # noqa
-from dust3r.model import AsymmetricCroCo3DStereo
+# from dust3r.model import AsymmetricCroCo3DStereo
 from mast3r.model import AsymmetricMASt3R
 from dust3r.demo import get_args_parser as dust3r_get_args_parser
 from dust3r.demo import main_demo, set_print_with_timestamp
