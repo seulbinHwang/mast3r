@@ -24,9 +24,16 @@ def apply_log_to_norm(xyz):
     return xyz
 
 
-class Regr3D (Regr3D_dust3r):
-    def __init__(self, criterion, norm_mode='avg_dis', gt_scale=False, opt_fit_gt=False,
-                 sky_loss_value=2, max_metric_scale=False, loss_in_log=False):
+class Regr3D(Regr3D_dust3r):
+
+    def __init__(self,
+                 criterion,
+                 norm_mode='avg_dis',
+                 gt_scale=False,
+                 opt_fit_gt=False,
+                 sky_loss_value=2,
+                 max_metric_scale=False,
+                 loss_in_log=False):
         self.loss_in_log = loss_in_log
         if norm_mode.startswith('?'):
             # do no norm pts from metric scale datasets
@@ -70,8 +77,12 @@ class Regr3D (Regr3D_dust3r):
                 # valid1: B, H, W
                 # torch.linalg.norm(gt_pts1, dim=-1) -> B, H, W
                 # dist1_to_cam1 -> reshape to B, H*W
-                dist1_to_cam1 = torch.where(valid1, torch.linalg.norm(gt_pts1, dim=-1), 0).view(B, -1)
-                dist2_to_cam1 = torch.where(valid2, torch.linalg.norm(gt_pts2, dim=-1), 0).view(B, -1)
+                dist1_to_cam1 = torch.where(valid1,
+                                            torch.linalg.norm(gt_pts1, dim=-1),
+                                            0).view(B, -1)
+                dist2_to_cam1 = torch.where(valid2,
+                                            torch.linalg.norm(gt_pts2, dim=-1),
+                                            0).view(B, -1)
 
                 # is_metric_scale: B
                 # dist1_to_cam1.max(dim=-1).values -> B
@@ -85,12 +96,18 @@ class Regr3D (Regr3D_dust3r):
             mask = torch.ones_like(gt1['is_metric_scale'])
         # normalize 3d points
         if self.norm_mode and mask.any():
-            pr_pts1[mask], pr_pts2[mask] = normalize_pointcloud(pr_pts1[mask], pr_pts2[mask], self.norm_mode,
-                                                                valid1[mask], valid2[mask])
+            pr_pts1[mask], pr_pts2[mask] = normalize_pointcloud(
+                pr_pts1[mask], pr_pts2[mask], self.norm_mode, valid1[mask],
+                valid2[mask])
 
         if self.norm_mode and not self.gt_scale:
-            gt_pts1, gt_pts2, norm_factor = normalize_pointcloud(gt_pts1, gt_pts2, self.norm_mode,
-                                                                 valid1, valid2, ret_factor=True)
+            gt_pts1, gt_pts2, norm_factor = normalize_pointcloud(
+                gt_pts1,
+                gt_pts2,
+                self.norm_mode,
+                valid1,
+                valid2,
+                ret_factor=True)
             # apply the same normalization to prediction
             pr_pts1[~mask] = pr_pts1[~mask] / norm_factor[~mask]
             pr_pts2[~mask] = pr_pts2[~mask] / norm_factor[~mask]
@@ -133,11 +150,14 @@ class Regr3D (Regr3D_dust3r):
             l1 = torch.where(sky1[mask1], self.sky_loss_value, l1)
             l2 = torch.where(sky2[mask2], self.sky_loss_value, l2)
         self_name = type(self).__name__
-        details = {self_name + '_pts3d_1': float(l1.mean()), self_name + '_pts3d_2': float(l2.mean())}
+        details = {
+            self_name + '_pts3d_1': float(l1.mean()),
+            self_name + '_pts3d_2': float(l2.mean())
+        }
         return Sum((l1, mask1), (l2, mask2)), (details | monitoring)
 
 
-class Regr3D_ShiftInv (Regr3D):
+class Regr3D_ShiftInv(Regr3D):
     """ Same than Regr3D but invariant to depth shift.
     """
 
@@ -149,8 +169,10 @@ class Regr3D_ShiftInv (Regr3D):
         # compute median depth
         gt_z1, gt_z2 = gt_pts1[..., 2], gt_pts2[..., 2]
         pred_z1, pred_z2 = pred_pts1[..., 2], pred_pts2[..., 2]
-        gt_shift_z = get_joint_pointcloud_depth(gt_z1, gt_z2, mask1, mask2)[:, None, None]
-        pred_shift_z = get_joint_pointcloud_depth(pred_z1, pred_z2, mask1, mask2)[:, None, None]
+        gt_shift_z = get_joint_pointcloud_depth(gt_z1, gt_z2, mask1,
+                                                mask2)[:, None, None]
+        pred_shift_z = get_joint_pointcloud_depth(pred_z1, pred_z2, mask1,
+                                                  mask2)[:, None, None]
 
         # subtract the median depth
         gt_z1 -= gt_shift_z
@@ -162,7 +184,7 @@ class Regr3D_ShiftInv (Regr3D):
         return gt_pts1, gt_pts2, pred_pts1, pred_pts2, mask1, mask2, sky1, sky2, monitoring
 
 
-class Regr3D_ScaleInv (Regr3D):
+class Regr3D_ScaleInv(Regr3D):
     """ Same than Regr3D but invariant to depth scale.
         if gt_scale == True: enforce the prediction to take the same scale than GT
     """
@@ -173,8 +195,10 @@ class Regr3D_ScaleInv (Regr3D):
             super().get_all_pts3d(gt1, gt2, pred1, pred2)
 
         # measure scene scale
-        _, gt_scale = get_joint_pointcloud_center_scale(gt_pts1, gt_pts2, mask1, mask2)
-        _, pred_scale = get_joint_pointcloud_center_scale(pred_pts1, pred_pts2, mask1, mask2)
+        _, gt_scale = get_joint_pointcloud_center_scale(gt_pts1, gt_pts2, mask1,
+                                                        mask2)
+        _, pred_scale = get_joint_pointcloud_center_scale(
+            pred_pts1, pred_pts2, mask1, mask2)
 
         # prevent predictions to be in a ridiculous range
         pred_scale = pred_scale.clip(min=1e-3, max=1e3)
@@ -194,7 +218,7 @@ class Regr3D_ScaleInv (Regr3D):
         return gt_pts1, gt_pts2, pred_pts1, pred_pts2, mask1, mask2, sky1, sky2, monitoring
 
 
-class Regr3D_ScaleShiftInv (Regr3D_ScaleInv, Regr3D_ShiftInv):
+class Regr3D_ScaleShiftInv(Regr3D_ScaleInv, Regr3D_ShiftInv):
     # calls Regr3D_ShiftInv first, then Regr3D_ScaleInv
     pass
 
@@ -210,6 +234,7 @@ def get_similarities(desc1, desc2, euc=False):
 
 
 class MatchingCriterion(BaseCriterion):
+
     def __init__(self, reduction='mean', fp=torch.float32):
         super().__init__(reduction)
         self.fp = fp
@@ -235,6 +260,7 @@ class MatchingCriterion(BaseCriterion):
 
 
 class InfoNCE(MatchingCriterion):
+
     def __init__(self, temperature=0.07, eps=1e-8, mode='all', **kwargs):
         super().__init__(**kwargs)
         self.temperature = temperature
@@ -250,7 +276,8 @@ class InfoNCE(MatchingCriterion):
         if valid_matches is None:
             valid_matches = torch.ones([B, N], dtype=bool)
         # torch.all(valid_matches.sum(dim=-1) > 0) some pairs have no matches????
-        assert valid_matches.shape == torch.Size([B, N]) and valid_matches.sum() > 0
+        assert valid_matches.shape == torch.Size([B, N
+                                                 ]) and valid_matches.sum() > 0
 
         # Tempered similarities
         sim = get_similarities(desc1, desc2, euc) / self.temperature
@@ -260,19 +287,24 @@ class InfoNCE(MatchingCriterion):
         positives = sim.diagonal(dim1=-2, dim2=-1)
 
         # Loss
-        if self.mode == 'all':            # Previous InfoNCE
-            loss = -torch.log((positives / sim.sum(dim=-1).sum(dim=-1, keepdim=True)).clip(self.eps))
+        if self.mode == 'all':  # Previous InfoNCE
+            loss = -torch.log(
+                (positives / sim.sum(dim=-1).sum(dim=-1, keepdim=True)).clip(
+                    self.eps))
         elif self.mode == 'proper':  # Proper InfoNCE
-            loss = -(torch.log((positives / sim.sum(dim=-2)).clip(self.eps)) +
-                     torch.log((positives / sim.sum(dim=-1)).clip(self.eps)))
+            loss = -(torch.log(
+                (positives / sim.sum(dim=-2)).clip(self.eps)) + torch.log(
+                    (positives / sim.sum(dim=-1)).clip(self.eps)))
         elif self.mode == 'dual':  # Dual Softmax
-            loss = -(torch.log((positives**2 / sim.sum(dim=-1) / sim.sum(dim=-2)).clip(self.eps)))
+            loss = -(torch.log(
+                (positives**2 / sim.sum(dim=-1) / sim.sum(dim=-2)).clip(
+                    self.eps)))
         else:
             raise ValueError("This should not happen...")
         return loss[valid_matches]
 
 
-class APLoss (MatchingCriterion):
+class APLoss(MatchingCriterion):
     """ AP loss.
 
         Input: (N, M)   values in [min, max]
@@ -294,6 +326,7 @@ class APLoss (MatchingCriterion):
 
     @staticmethod
     def compute_true_AP_sklearn(scores, labels):
+
         def compute_AP(label, score):
             return average_precision_score(label, score)
 
@@ -317,31 +350,40 @@ class APLoss (MatchingCriterion):
             # sort scores
             _, order = scores.sort(dim=-1, descending=True)
             # sort labels accordingly
-            labels = labels[torch.arange(B, device=dev)[:, None, None].expand(order.shape),
-                            torch.arange(N, device=dev)[None, :, None].expand(order.shape),
-                            order]
+            labels = labels[
+                torch.arange(B, device=dev)[:, None, None].expand(order.shape),
+                torch.arange(N, device=dev)[None, :,
+                                            None].expand(order.shape), order]
             # compute number of positives per query
             npos = labels.sum(dim=-1)
-            assert torch.all(torch.isclose(npos, npos[0, 0])
-                             ), "only implemented for constant number of positives per query"
+            assert torch.all(
+                torch.isclose(npos, npos[0, 0])
+            ), "only implemented for constant number of positives per query"
             npos = int(npos[0, 0])
             # compute precision at each recall point
             posrank = labels.nonzero()[:, -1].view(B, N, npos)
-            recall = torch.arange(1, 1 + npos, dtype=torch.float32, device=dev)[None, None, :].expand(B, N, npos)
+            recall = torch.arange(1, 1 + npos, dtype=torch.float32,
+                                  device=dev)[None, None, :].expand(B, N, npos)
             precision = recall / (1 + posrank).float()
             # average precision values at all recall points
             aps = precision.mean(dim=-1)
 
         return aps
 
-    def loss(self, desc1, desc2, valid_matches=None, euc=False):  # if matches is None, positives are the diagonal
+    def loss(self,
+             desc1,
+             desc2,
+             valid_matches=None,
+             euc=False):  # if matches is None, positives are the diagonal
         B, N1, D = desc1.shape
         B2, N2, D2 = desc2.shape
         assert B == B2 and D == D2
 
         scores = get_similarities(desc1, desc2, euc)
 
-        labels = torch.zeros([B, N1, N2], dtype=scores.dtype, device=scores.device)
+        labels = torch.zeros([B, N1, N2],
+                             dtype=scores.dtype,
+                             device=scores.device)
 
         # allow all diagonal positives and only mask afterwards
         labels.diagonal(dim1=-2, dim2=-1)[...] = 1.
@@ -351,13 +393,18 @@ class APLoss (MatchingCriterion):
         return apscore
 
 
-class MatchingLoss (Criterion, MultiLoss):
+class MatchingLoss(Criterion, MultiLoss):
     """ 
     Matching loss per image 
     only compare pixels inside an image but not in the whole batch as what would be done usually
     """
 
-    def __init__(self, criterion, withconf=False, use_pts3d=False, negatives_padding=0, blocksize=4096):
+    def __init__(self,
+                 criterion,
+                 withconf=False,
+                 use_pts3d=False,
+                 negatives_padding=0,
+                 blocksize=4096):
         super().__init__(criterion)
         self.negatives_padding = negatives_padding
         self.use_pts3d = use_pts3d
@@ -369,8 +416,9 @@ class MatchingLoss (Criterion, MultiLoss):
             B, H, W, D = desc2.shape
             negatives = torch.ones([B, H, W], device=desc2.device, dtype=bool)
             negatives[batchid, y2, x2] = False
-            sel = negatives & (negatives.view([B, -1]).cumsum(dim=-1).view(B, H, W)
-                               <= self.negatives_padding)  # take the N-first negatives
+            sel = negatives & (negatives.view([B, -1]).cumsum(dim=-1).view(
+                B, H, W) <= self.negatives_padding
+                              )  # take the N-first negatives
             outdesc2 = torch.cat([outdesc2, desc2[sel].view([B, -1, D])], dim=1)
         return outdesc2
 
@@ -404,7 +452,8 @@ class MatchingLoss (Criterion, MultiLoss):
         # Select descs that have GT matches
         B, N = x1.shape
         batchid = torch.arange(B)[:, None].repeat(1, N)  # B, N
-        outdesc1, outdesc2 = desc1[batchid, y1, x1], desc2[batchid, y2, x2]  # B, N, D
+        outdesc1, outdesc2 = desc1[batchid, y1, x1], desc2[batchid, y2,
+                                                           x2]  # B, N, D
 
         # Padd with unused negatives
         outdesc2 = self.add_negatives(outdesc2, desc2, batchid, x2, y2)
@@ -414,9 +463,19 @@ class MatchingLoss (Criterion, MultiLoss):
         sel2 = batchid, y2, x2
         outconfs1, outconfs2 = self.get_confs(pred1, pred2, sel1, sel2)
 
-        return outdesc1, outdesc2, outconfs1, outconfs2, valid_matches, {'use_euclidean_dist': self.use_pts3d}
+        return outdesc1, outdesc2, outconfs1, outconfs2, valid_matches, {
+            'use_euclidean_dist': self.use_pts3d
+        }
 
-    def blockwise_criterion(self, descs1, descs2, confs1, confs2, valid_matches, euc, rng=np.random, shuffle=True):
+    def blockwise_criterion(self,
+                            descs1,
+                            descs2,
+                            confs1,
+                            confs2,
+                            valid_matches,
+                            euc,
+                            rng=np.random,
+                            shuffle=True):
         loss = None
         details = {}
         B, N, D = descs1.shape
@@ -427,7 +486,10 @@ class MatchingLoss (Criterion, MultiLoss):
             # Shuffle if necessary
             matches_perm = slice(None)
             if shuffle:
-                matches_perm = np.stack([rng.choice(range(N), size=N, replace=False) for _ in range(B)])
+                matches_perm = np.stack([
+                    rng.choice(range(N), size=N, replace=False)
+                    for _ in range(B)
+                ])
                 batchid = torch.tile(torch.arange(B), (N, 1)).T
                 matches_perm = batchid, matches_perm
 
@@ -437,17 +499,23 @@ class MatchingLoss (Criterion, MultiLoss):
 
             assert N % self.blocksize == 0, "Error, can't chunk block-diagonal, please check blocksize"
             n_chunks = N // self.blocksize
-            descs1 = descs1.reshape([B * n_chunks, self.blocksize, D])  # [B*(N//blocksize), blocksize, D]
-            descs2 = descs2.reshape([B * n_chunks, self.blocksize, D])  # [B*(N//blocksize), blocksize, D]
+            descs1 = descs1.reshape([B * n_chunks, self.blocksize,
+                                     D])  # [B*(N//blocksize), blocksize, D]
+            descs2 = descs2.reshape([B * n_chunks, self.blocksize,
+                                     D])  # [B*(N//blocksize), blocksize, D]
             valid_matches = valid_matches.view([B * n_chunks, self.blocksize])
             loss = self.criterion(descs1, descs2, valid_matches, euc=euc)
             if self.withconf:
-                confs1, confs2 = map(lambda x: x[matches_perm], (confs1, confs2))  # apply perm to confidences if needed
+                confs1, confs2 = map(
+                    lambda x: x[matches_perm],
+                    (confs1, confs2))  # apply perm to confidences if needed
 
         if self.withconf:
             # split confidences between positives/negatives for loss computation
-            details['conf_pos'] = map(lambda x: x[valid_matches.view(B, -1)], (confs1, confs2))
-            details['conf_neg'] = map(lambda x: x[~valid_matches.view(B, -1)], (confs1, confs2))
+            details['conf_pos'] = map(lambda x: x[valid_matches.view(B, -1)],
+                                      (confs1, confs2))
+            details['conf_neg'] = map(lambda x: x[~valid_matches.view(B, -1)],
+                                      (confs1, confs2))
             details['Conf1_std'] = confs1.std()
             details['Conf2_std'] = confs2.std()
 
@@ -459,8 +527,14 @@ class MatchingLoss (Criterion, MultiLoss):
             gt1, gt2, pred1, pred2, **kw)
 
         # loss on matches
-        loss, details = self.blockwise_criterion(descs1, descs2, confs1, confs2,
-                                                 valid_matches, euc=monitoring.pop('use_euclidean_dist', False))
+        loss, details = self.blockwise_criterion(descs1,
+                                                 descs2,
+                                                 confs1,
+                                                 confs2,
+                                                 valid_matches,
+                                                 euc=monitoring.pop(
+                                                     'use_euclidean_dist',
+                                                     False))
 
         details[type(self).__name__] = float(loss.mean())
         return loss, (details | monitoring)
@@ -471,17 +545,24 @@ class ConfMatchingLoss(ConfLoss):
         Assuming the input matching_loss is a match-level loss.
     """
 
-    def __init__(self, pixel_loss, alpha=1., confmode='prod', neg_conf_loss_quantile=False):
+    def __init__(self,
+                 pixel_loss,
+                 alpha=1.,
+                 confmode='prod',
+                 neg_conf_loss_quantile=False):
         super().__init__(pixel_loss, alpha)
         self.pixel_loss.withconf = True
         self.confmode = confmode
         self.neg_conf_loss_quantile = neg_conf_loss_quantile
 
-    def aggregate_confs(self, confs1, confs2):  # get the confidences resulting from the two view predictions
+    def aggregate_confs(
+            self, confs1, confs2
+    ):  # get the confidences resulting from the two view predictions
         if self.confmode == 'prod':
             confs = confs1 * confs2 if confs1 is not None and confs2 is not None else 1.
         elif self.confmode == 'mean':
-            confs = .5 * (confs1 + confs2) if confs1 is not None and confs2 is not None else 1.
+            confs = .5 * (confs1 + confs2
+                         ) if confs1 is not None and confs2 is not None else 1.
         else:
             raise ValueError(f"Unknown conf mode {self.confmode}")
         return confs
@@ -505,7 +586,8 @@ class ConfMatchingLoss(ConfLoss):
             conf_neg, log_conf_neg = self.get_conf_log(conf_neg)
 
             # recover quantile that will be used for negatives loss value assignment
-            neg_loss_value = torch.quantile(loss, self.neg_conf_loss_quantile).detach()
+            neg_loss_value = torch.quantile(
+                loss, self.neg_conf_loss_quantile).detach()
             neg_loss = neg_loss_value * conf_neg - self.alpha * log_conf_neg
 
             neg_loss = neg_loss.mean() if neg_loss.numel() > 0 else 0

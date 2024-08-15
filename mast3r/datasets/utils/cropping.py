@@ -11,7 +11,8 @@ from dust3r.utils.geometry import inv, geotrf
 
 
 def reciprocal_1d(corres_1_to_2, corres_2_to_1, ret_recip=False):
-    is_reciprocal1 = (corres_2_to_1[corres_1_to_2] == np.arange(len(corres_1_to_2)))
+    is_reciprocal1 = (corres_2_to_1[corres_1_to_2] == np.arange(
+        len(corres_1_to_2)))
     pos1 = is_reciprocal1.nonzero()[0]
     pos2 = corres_1_to_2[pos1]
     if ret_recip:
@@ -19,7 +20,12 @@ def reciprocal_1d(corres_1_to_2, corres_2_to_1, ret_recip=False):
     return pos1, pos2
 
 
-def extract_correspondences_from_pts3d(view1, view2, target_n_corres, rng=np.random, ret_xy=True, nneg=0):
+def extract_correspondences_from_pts3d(view1,
+                                       view2,
+                                       target_n_corres,
+                                       rng=np.random,
+                                       ret_xy=True,
+                                       nneg=0):
     view1, view2 = to_numpy((view1, view2))
     # project pixels from image1 --> 3d points --> image2 pixels
     shape1, corres1_to_2 = reproject_view(view1['pts3d'], view2)
@@ -27,8 +33,11 @@ def extract_correspondences_from_pts3d(view1, view2, target_n_corres, rng=np.ran
 
     # compute reciprocal correspondences:
     # pos1 == valid pixels (correspondences) in image1
-    is_reciprocal1, pos1, pos2 = reciprocal_1d(corres1_to_2, corres2_to_1, ret_recip=True)
-    is_reciprocal2 = (corres1_to_2[corres2_to_1] == np.arange(len(corres2_to_1)))
+    is_reciprocal1, pos1, pos2 = reciprocal_1d(corres1_to_2,
+                                               corres2_to_1,
+                                               ret_recip=True)
+    is_reciprocal2 = (corres1_to_2[corres2_to_1] == np.arange(
+        len(corres2_to_1)))
 
     if target_n_corres is None:
         if ret_xy:
@@ -62,9 +71,19 @@ def extract_correspondences_from_pts3d(view1, view2, target_n_corres, rng=np.ran
 
     if n_negatives > 0:
         # add false correspondences if not enough
-        def norm(p): return p / p.sum()
-        pos1 = np.r_[pos1, rng.choice(shape1[0] * shape1[1], size=n_negatives, replace=False, p=norm(~is_reciprocal1))]
-        pos2 = np.r_[pos2, rng.choice(shape2[0] * shape2[1], size=n_negatives, replace=False, p=norm(~is_reciprocal2))]
+        def norm(p):
+            return p / p.sum()
+
+        pos1 = np.r_[pos1,
+                     rng.choice(shape1[0] * shape1[1],
+                                size=n_negatives,
+                                replace=False,
+                                p=norm(~is_reciprocal1))]
+        pos2 = np.r_[pos2,
+                     rng.choice(shape2[0] * shape2[1],
+                                size=n_negatives,
+                                replace=False,
+                                p=norm(~is_reciprocal2))]
         valid = np.r_[valid, np.zeros(n_negatives, dtype=bool)]
 
     # convert (x+W*y) back to 2d (x,y) coordinates
@@ -76,7 +95,8 @@ def extract_correspondences_from_pts3d(view1, view2, target_n_corres, rng=np.ran
 
 def reproject_view(pts3d, view2):
     shape = view2['pts3d'].shape[:2]
-    return reproject(pts3d, view2['camera_intrinsics'], inv(view2['camera_pose']), shape)
+    return reproject(pts3d, view2['camera_intrinsics'],
+                     inv(view2['camera_pose']), shape)
 
 
 def reproject(pts3d, K, world2cam, shape):
@@ -95,7 +115,8 @@ def ravel_xy(pos, shape):
     H, W = shape
     with np.errstate(invalid='ignore'):
         qx, qy = pos.reshape(-1, 2).round().astype(np.int32).T
-    quantized_pos = qx.clip(min=0, max=W - 1, out=qx) + W * qy.clip(min=0, max=H - 1, out=qy)
+    quantized_pos = qx.clip(min=0, max=W - 1,
+                            out=qx) + W * qy.clip(min=0, max=H - 1, out=qy)
     return quantized_pos
 
 
@@ -176,7 +197,8 @@ def crop_to_homography(K, crop, target_size=None):
 
     old_pt = _dotmv(np.linalg.inv(K), corner, norm=1)
     new_pt = _dotmv(np.linalg.inv(K2), corner2, norm=1)
-    R = _rotation_origin_to_pt(old_pt) @ np.linalg.inv(_rotation_origin_to_pt(new_pt))
+    R = _rotation_origin_to_pt(old_pt) @ np.linalg.inv(
+        _rotation_origin_to_pt(new_pt))
 
     if target_size is not None:
         imsize = target_size

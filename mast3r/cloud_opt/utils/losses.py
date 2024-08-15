@@ -24,7 +24,9 @@ def gamma_loss(gamma, mul=1, offset=None, clip=np.inf):
         offset = (1 / gamma)**(1 / (gamma - 1))
 
     def loss_func(x, y):
-        return (mul * l1_loss(x, y).clip(max=clip) + offset) ** gamma - offset ** gamma
+        return (mul * l1_loss(x, y).clip(max=clip) +
+                offset)**gamma - offset**gamma
+
     return loss_func
 
 

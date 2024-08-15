@@ -14,7 +14,6 @@ import mast3r.utils.path_to_dust3r  # noqa
 from dust3r.model import AsymmetricCroCo3DStereo  # noqa
 from dust3r.utils.misc import transpose_to_landscape  # noqa
 
-
 inf = float('inf')
 
 
@@ -26,7 +25,8 @@ def load_model(model_path, device, verbose=True):
     if 'landscape_only' not in args:
         args = args[:-1] + ', landscape_only=False)'
     else:
-        args = args.replace(" ", "").replace('landscape_only=True', 'landscape_only=False')
+        args = args.replace(" ", "").replace('landscape_only=True',
+                                             'landscape_only=False')
     assert "landscape_only=False" in args
     if verbose:
         print(f"instantiating : {args}")
@@ -38,7 +38,12 @@ def load_model(model_path, device, verbose=True):
 
 
 class AsymmetricMASt3R(AsymmetricCroCo3DStereo):
-    def __init__(self, desc_mode=('norm'), two_confs=False, desc_conf_mode=None, **kwargs):
+
+    def __init__(self,
+                 desc_mode=('norm'),
+                 two_confs=False,
+                 desc_conf_mode=None,
+                 **kwargs):
         self.desc_mode = desc_mode
         self.two_confs = two_confs
         self.desc_conf_mode = desc_conf_mode
@@ -49,9 +54,12 @@ class AsymmetricMASt3R(AsymmetricCroCo3DStereo):
         if os.path.isfile(pretrained_model_name_or_path):
             return load_model(pretrained_model_name_or_path, device='cpu')
         else:
-            return super(AsymmetricMASt3R, cls).from_pretrained(pretrained_model_name_or_path, **kw)
+            return super(AsymmetricMASt3R,
+                         cls).from_pretrained(pretrained_model_name_or_path,
+                                              **kw)
 
-    def set_downstream_head(self, output_mode, head_type, landscape_only, depth_mode, conf_mode, patch_size, img_size, **kw):
+    def set_downstream_head(self, output_mode, head_type, landscape_only,
+                            depth_mode, conf_mode, patch_size, img_size, **kw):
         assert img_size[0] % patch_size == 0 and img_size[
             1] % patch_size == 0, f'{img_size=} must be multiple of {patch_size=}'
         self.output_mode = output_mode
@@ -61,8 +69,16 @@ class AsymmetricMASt3R(AsymmetricCroCo3DStereo):
         if self.desc_conf_mode is None:
             self.desc_conf_mode = conf_mode
         # allocate heads
-        self.downstream_head1 = mast3r_head_factory(head_type, output_mode, self, has_conf=bool(conf_mode))
-        self.downstream_head2 = mast3r_head_factory(head_type, output_mode, self, has_conf=bool(conf_mode))
+        self.downstream_head1 = mast3r_head_factory(head_type,
+                                                    output_mode,
+                                                    self,
+                                                    has_conf=bool(conf_mode))
+        self.downstream_head2 = mast3r_head_factory(head_type,
+                                                    output_mode,
+                                                    self,
+                                                    has_conf=bool(conf_mode))
         # magic wrapper
-        self.head1 = transpose_to_landscape(self.downstream_head1, activate=landscape_only)
-        self.head2 = transpose_to_landscape(self.downstream_head2, activate=landscape_only)
+        self.head1 = transpose_to_landscape(self.downstream_head1,
+                                            activate=landscape_only)
+        self.head2 = transpose_to_landscape(self.downstream_head2,
+                                            activate=landscape_only)

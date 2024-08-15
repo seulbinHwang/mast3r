@@ -22,14 +22,15 @@ import mast3r.utils.path_to_dust3r  # noqa
 from dust3r.utils.geometry import find_reciprocal_matches, xy_grid, geotrf  # noqa
 
 
-def convert_im_matches_pairs(img0, img1, image_to_colmap, im_keypoints, matches_im0, matches_im1, viz):
+def convert_im_matches_pairs(img0, img1, image_to_colmap, im_keypoints,
+                             matches_im0, matches_im1, viz):
     if viz:
         from matplotlib import pyplot as pl
 
-        image_mean = torch.as_tensor(
-            [0.5, 0.5, 0.5], device='cpu').reshape(1, 3, 1, 1)
-        image_std = torch.as_tensor(
-            [0.5, 0.5, 0.5], device='cpu').reshape(1, 3, 1, 1)
+        image_mean = torch.as_tensor([0.5, 0.5, 0.5],
+                                     device='cpu').reshape(1, 3, 1, 1)
+        image_std = torch.as_tensor([0.5, 0.5, 0.5],
+                                    device='cpu').reshape(1, 3, 1, 1)
         rgb0 = img0['img'] * image_std + image_mean
         rgb0 = torchvision.transforms.functional.to_pil_image(rgb0[0])
         rgb0 = np.array(rgb0)
@@ -42,24 +43,29 @@ def convert_im_matches_pairs(img0, img1, image_to_colmap, im_keypoints, matches_
         # visualize a few matches
         n_viz = 100
         num_matches = matches_im0.shape[0]
-        match_idx_to_viz = np.round(np.linspace(
-            0, num_matches - 1, n_viz)).astype(int)
-        viz_matches_im0, viz_matches_im1 = matches_im0[match_idx_to_viz], matches_im1[match_idx_to_viz]
+        match_idx_to_viz = np.round(np.linspace(0, num_matches - 1,
+                                                n_viz)).astype(int)
+        viz_matches_im0, viz_matches_im1 = matches_im0[
+            match_idx_to_viz], matches_im1[match_idx_to_viz]
 
         H0, W0, H1, W1 = *imgs[0].shape[:2], *imgs[1].shape[:2]
-        rgb0 = np.pad(imgs[0], ((0, max(H1 - H0, 0)),
-                                (0, 0), (0, 0)), 'constant', constant_values=0)
-        rgb1 = np.pad(imgs[1], ((0, max(H0 - H1, 0)),
-                                (0, 0), (0, 0)), 'constant', constant_values=0)
+        rgb0 = np.pad(imgs[0], ((0, max(H1 - H0, 0)), (0, 0), (0, 0)),
+                      'constant',
+                      constant_values=0)
+        rgb1 = np.pad(imgs[1], ((0, max(H0 - H1, 0)), (0, 0), (0, 0)),
+                      'constant',
+                      constant_values=0)
         img = np.concatenate((rgb0, rgb1), axis=1)
         pl.figure()
         pl.imshow(img)
         cmap = pl.get_cmap('jet')
         for ii in range(n_viz):
-            (x0, y0), (x1,
-                       y1) = viz_matches_im0[ii].T, viz_matches_im1[ii].T
-            pl.plot([x0, x1 + W0], [y0, y1], '-+', color=cmap(ii /
-                    (n_viz - 1)), scalex=False, scaley=False)
+            (x0, y0), (x1, y1) = viz_matches_im0[ii].T, viz_matches_im1[ii].T
+            pl.plot([x0, x1 + W0], [y0, y1],
+                    '-+',
+                    color=cmap(ii / (n_viz - 1)),
+                    scalex=False,
+                    scaley=False)
         pl.show(block=True)
 
     matches = [matches_im0.astype(np.float64), matches_im1.astype(np.float64)]
@@ -71,7 +77,8 @@ def convert_im_matches_pairs(img0, img1, image_to_colmap, im_keypoints, matches_
         H, W = imgs[j]['true_shape'][0]
         with np.errstate(invalid='ignore'):
             qx, qy = matches[j].round().astype(np.int32).T
-        ravel_matches_j = qx.clip(min=0, max=W - 1, out=qx) + W * qy.clip(min=0, max=H - 1, out=qy)
+        ravel_matches_j = qx.clip(
+            min=0, max=W - 1, out=qx) + W * qy.clip(min=0, max=H - 1, out=qy)
         ravel_matches.append(ravel_matches_j)
         imidxj = imgs[j]['idx']
         for m in ravel_matches_j:
@@ -90,8 +97,17 @@ def convert_im_matches_pairs(img0, img1, image_to_colmap, im_keypoints, matches_
     return imidx0, imidx1, colmap_matches
 
 
-def get_im_matches(pred1, pred2, pairs, image_to_colmap, im_keypoints, conf_thr,
-                   is_sparse=True, subsample=8, pixel_tol=0, viz=False, device='cuda'):
+def get_im_matches(pred1,
+                   pred2,
+                   pairs,
+                   image_to_colmap,
+                   im_keypoints,
+                   conf_thr,
+                   is_sparse=True,
+                   subsample=8,
+                   pixel_tol=0,
+                   viz=False,
+                   device='cuda'):
     im_matches = {}
     for i in range(len(pred1['pts3d'])):
         imidx0 = pairs[i][0]['idx']
@@ -102,30 +118,39 @@ def get_im_matches(pred1, pred2, pairs, image_to_colmap, im_keypoints, conf_thr,
             desc_dim = descs[0].shape[-1]
 
             if is_sparse:
-                corres = extract_correspondences_nonsym(descs[0], descs[1], confidences[0], confidences[1],
-                                                        device=device, subsample=subsample, pixel_tol=pixel_tol)
+                corres = extract_correspondences_nonsym(descs[0],
+                                                        descs[1],
+                                                        confidences[0],
+                                                        confidences[1],
+                                                        device=device,
+                                                        subsample=subsample,
+                                                        pixel_tol=pixel_tol)
                 conf = corres[2]
                 mask = conf >= conf_thr
                 matches_im0 = corres[0][mask].cpu().numpy()
                 matches_im1 = corres[1][mask].cpu().numpy()
             else:
-                confidence_masks = [confidences[0] >=
-                                    conf_thr, confidences[1] >= conf_thr]
+                confidence_masks = [
+                    confidences[0] >= conf_thr, confidences[1] >= conf_thr
+                ]
                 pts2d_list, desc_list = [], []
                 for j in range(2):
                     conf_j = confidence_masks[j].cpu().numpy().flatten()
                     true_shape_j = pairs[i][j]['true_shape'][0]
-                    pts2d_j = xy_grid(
-                        true_shape_j[1], true_shape_j[0]).reshape(-1, 2)[conf_j]
-                    desc_j = descs[j].detach().cpu(
-                    ).numpy().reshape(-1, desc_dim)[conf_j]
+                    pts2d_j = xy_grid(true_shape_j[1],
+                                      true_shape_j[0]).reshape(-1, 2)[conf_j]
+                    desc_j = descs[j].detach().cpu().numpy().reshape(
+                        -1, desc_dim)[conf_j]
                     pts2d_list.append(pts2d_j)
                     desc_list.append(desc_j)
                 if len(desc_list[0]) == 0 or len(desc_list[1]) == 0:
                     continue
 
-                nn0, nn1 = bruteforce_reciprocal_nns(desc_list[0], desc_list[1],
-                                                     device=device, dist='dot', block_size=2**13)
+                nn0, nn1 = bruteforce_reciprocal_nns(desc_list[0],
+                                                     desc_list[1],
+                                                     device=device,
+                                                     dist='dot',
+                                                     block_size=2**13)
                 reciprocal_in_P0 = (nn1[nn0] == np.arange(len(nn0)))
 
                 matches_im1 = pts2d_list[1][nn0][reciprocal_in_P0]
@@ -135,23 +160,31 @@ def get_im_matches(pred1, pred2, pairs, image_to_colmap, im_keypoints, conf_thr,
             confidences = [pred1['conf'][i], pred2['conf'][i]]
 
             if is_sparse:
-                corres = extract_correspondences_nonsym(pts3d[0], pts3d[1], confidences[0], confidences[1],
-                                                        device=device, subsample=subsample, pixel_tol=pixel_tol,
+                corres = extract_correspondences_nonsym(pts3d[0],
+                                                        pts3d[1],
+                                                        confidences[0],
+                                                        confidences[1],
+                                                        device=device,
+                                                        subsample=subsample,
+                                                        pixel_tol=pixel_tol,
                                                         ptmap_key='3d')
                 conf = corres[2]
                 mask = conf >= conf_thr
                 matches_im0 = corres[0][mask].cpu().numpy()
                 matches_im1 = corres[1][mask].cpu().numpy()
             else:
-                confidence_masks = [confidences[0] >=
-                                    conf_thr, confidences[1] >= conf_thr]
+                confidence_masks = [
+                    confidences[0] >= conf_thr, confidences[1] >= conf_thr
+                ]
                 # find 2D-2D matches between the two images
                 pts2d_list, pts3d_list = [], []
                 for j in range(2):
                     conf_j = confidence_masks[j].cpu().numpy().flatten()
                     true_shape_j = pairs[i][j]['true_shape'][0]
-                    pts2d_j = xy_grid(true_shape_j[1], true_shape_j[0]).reshape(-1, 2)[conf_j]
-                    pts3d_j = pts3d[j].detach().cpu().numpy().reshape(-1, 3)[conf_j]
+                    pts2d_j = xy_grid(true_shape_j[1],
+                                      true_shape_j[0]).reshape(-1, 2)[conf_j]
+                    pts3d_j = pts3d[j].detach().cpu().numpy().reshape(-1,
+                                                                      3)[conf_j]
                     pts2d_list.append(pts2d_j)
                     pts3d_list.append(pts3d_j)
 
@@ -166,16 +199,22 @@ def get_im_matches(pred1, pred2, pairs, image_to_colmap, im_keypoints, conf_thr,
 
         if len(matches_im0) == 0:
             continue
-        imidx0, imidx1, colmap_matches = convert_im_matches_pairs(pairs[i][0], pairs[i][1],
-                                                                  image_to_colmap, im_keypoints,
-                                                                  matches_im0, matches_im1, viz)
+        imidx0, imidx1, colmap_matches = convert_im_matches_pairs(
+            pairs[i][0], pairs[i][1], image_to_colmap, im_keypoints,
+            matches_im0, matches_im1, viz)
         im_matches[(imidx0, imidx1)] = colmap_matches
     return im_matches
 
 
-def get_im_matches_from_cache(pairs, cache_path, desc_conf, subsample,
-                              image_to_colmap, im_keypoints, conf_thr,
-                              viz=False, device='cuda'):
+def get_im_matches_from_cache(pairs,
+                              cache_path,
+                              desc_conf,
+                              subsample,
+                              image_to_colmap,
+                              im_keypoints,
+                              conf_thr,
+                              viz=False,
+                              device='cuda'):
     im_matches = {}
     for i in range(len(pairs)):
         imidx0 = pairs[i][0]['idx']
@@ -186,24 +225,27 @@ def get_im_matches_from_cache(pairs, cache_path, desc_conf, subsample,
 
         path_corres = cache_path + f'/corres_conf={desc_conf}_{subsample=}/{corres_idx1}-{corres_idx2}.pth'
         if os.path.isfile(path_corres):
-            score, (xy1, xy2, confs) = torch.load(path_corres, map_location=device)
+            score, (xy1, xy2, confs) = torch.load(path_corres,
+                                                  map_location=device)
         else:
             path_corres = cache_path + f'/corres_conf={desc_conf}_{subsample=}/{corres_idx2}-{corres_idx1}.pth'
-            score, (xy2, xy1, confs) = torch.load(path_corres, map_location=device)
+            score, (xy2, xy1, confs) = torch.load(path_corres,
+                                                  map_location=device)
         mask = confs >= conf_thr
         matches_im0 = xy1[mask].cpu().numpy()
         matches_im1 = xy2[mask].cpu().numpy()
 
         if len(matches_im0) == 0:
             continue
-        imidx0, imidx1, colmap_matches = convert_im_matches_pairs(pairs[i][0], pairs[i][1],
-                                                                  image_to_colmap, im_keypoints,
-                                                                  matches_im0, matches_im1, viz)
+        imidx0, imidx1, colmap_matches = convert_im_matches_pairs(
+            pairs[i][0], pairs[i][1], image_to_colmap, im_keypoints,
+            matches_im0, matches_im1, viz)
         im_matches[(imidx0, imidx1)] = colmap_matches
     return im_matches
 
 
-def export_images(db, images, image_paths, focals, ga_world_to_cam, camera_model):
+def export_images(db, images, image_paths, focals, ga_world_to_cam,
+                  camera_model):
     # add cameras/images to the db
     # with the output of ga as prior
     image_to_colmap = {}
@@ -216,7 +258,8 @@ def export_images(db, images, image_paths, focals, ga_world_to_cam, camera_model
             prior_focal_length = False
             cx = W / 2.0
             cy = H / 2.0
-        elif isinstance(focals[idx], np.ndarray) and len(focals[idx].shape) == 2:
+        elif isinstance(focals[idx], np.ndarray) and len(
+                focals[idx].shape) == 2:
             # intrinsics
             focal_x = focals[idx][0, 0]
             focal_y = focals[idx][1, 1]
@@ -244,14 +287,18 @@ def export_images(db, images, image_paths, focals, ga_world_to_cam, camera_model
             params = np.asarray([focal, cx, cy, 0.0], np.float64)
         elif camera_model == "OPENCV":
             model_id = 4
-            params = np.asarray([focal_x, focal_y, cx, cy, 0.0, 0.0, 0.0, 0.0], np.float64)
+            params = np.asarray([focal_x, focal_y, cx, cy, 0.0, 0.0, 0.0, 0.0],
+                                np.float64)
         else:
             raise ValueError(f"invalid camera model {camera_model}")
 
         H, W = int(H), int(W)
         # OPENCV camera model
-        camid = db.add_camera(
-            model_id, W, H, params, prior_focal_length=prior_focal_length)
+        camid = db.add_camera(model_id,
+                              W,
+                              H,
+                              params,
+                              prior_focal_length=prior_focal_length)
         if ga_world_to_cam is None:
             prior_t = np.zeros(3)
             prior_q = np.zeros(4)
@@ -259,16 +306,16 @@ def export_images(db, images, image_paths, focals, ga_world_to_cam, camera_model
             q = R.from_matrix(ga_world_to_cam[idx][:3, :3]).as_quat()
             prior_t = ga_world_to_cam[idx][:3, 3]
             prior_q = np.array([q[-1], q[0], q[1], q[2]])
-        imid = db.add_image(
-            image_paths[idx], camid, prior_q=prior_q, prior_t=prior_t)
-        image_to_colmap[idx] = {
-            'colmap_imid': imid,
-            'colmap_camid': camid
-        }
+        imid = db.add_image(image_paths[idx],
+                            camid,
+                            prior_q=prior_q,
+                            prior_t=prior_t)
+        image_to_colmap[idx] = {'colmap_imid': imid, 'colmap_camid': camid}
     return image_to_colmap, im_keypoints
 
 
-def export_matches(db, images, image_to_colmap, im_keypoints, im_matches, min_len_track, skip_geometric_verification):
+def export_matches(db, images, image_to_colmap, im_keypoints, im_matches,
+                   min_len_track, skip_geometric_verification):
     colmap_image_pairs = []
     # 2D-2D are quite dense
     # we want to remove the very small tracks
@@ -285,13 +332,13 @@ def export_matches(db, images, image_to_colmap, im_keypoints, im_matches, min_le
             keypoints_to_track_id[imidx1] = {}
 
         for m in colmap_matches:
-            if m[0] not in keypoints_to_track_id[imidx0] and m[1] not in keypoints_to_track_id[imidx1]:
+            if m[0] not in keypoints_to_track_id[imidx0] and m[
+                    1] not in keypoints_to_track_id[imidx1]:
                 # new pair of kpts never seen before
                 track_idx = len(track_id_to_kpt_list)
                 keypoints_to_track_id[imidx0][m[0]] = track_idx
                 keypoints_to_track_id[imidx1][m[1]] = track_idx
-                track_id_to_kpt_list.append(
-                    [(imidx0, m[0]), (imidx1, m[1])])
+                track_id_to_kpt_list.append([(imidx0, m[0]), (imidx1, m[1])])
             elif m[1] not in keypoints_to_track_id[imidx1]:
                 # 0 has a track, not 1
                 track_idx = keypoints_to_track_id[imidx0][m[0]]
@@ -354,12 +401,16 @@ def export_matches(db, images, image_to_colmap, im_keypoints, im_matches, min_le
         if len(keypoints_kept) == 0:
             continue
         keypoints_kept = np.array(keypoints_kept)
-        keypoints_kept = np.unravel_index(keypoints_kept, images[imidx]['true_shape'][0])[
-            0].base[:, ::-1].copy().astype(np.float32)
+        keypoints_kept = np.unravel_index(
+            keypoints_kept,
+            images[imidx]['true_shape'][0])[0].base[:, ::-1].copy().astype(
+                np.float32)
         # rescale coordinates
         keypoints_kept[:, 0] += 0.5
         keypoints_kept[:, 1] += 0.5
-        keypoints_kept = geotrf(images[imidx]['to_orig'], keypoints_kept, norm=True)
+        keypoints_kept = geotrf(images[imidx]['to_orig'],
+                                keypoints_kept,
+                                norm=True)
 
         H, W = images[imidx]['orig_shape']
         keypoints_kept[:, 0] = keypoints_kept[:, 0].clip(min=0, max=W - 0.01)
@@ -369,11 +420,14 @@ def export_matches(db, images, image_to_colmap, im_keypoints, im_matches, min_le
 
     print("exporting im_matches")
     for (imidx0, imidx1), colmap_matches in im_matches.items():
-        imid0, imid1 = image_to_colmap[imidx0]['colmap_imid'], image_to_colmap[imidx1]['colmap_imid']
+        imid0, imid1 = image_to_colmap[imidx0]['colmap_imid'], image_to_colmap[
+            imidx1]['colmap_imid']
         assert imid0 < imid1
-        final_matches = np.array([[keypoints_to_idx[imidx0][m[0]], keypoints_to_idx[imidx1][m[1]]]
-                                  for m in colmap_matches
-                                  if m[0] in keypoints_to_idx[imidx0] and m[1] in keypoints_to_idx[imidx1]])
+        final_matches = np.array(
+            [[keypoints_to_idx[imidx0][m[0]], keypoints_to_idx[imidx1][m[1]]]
+             for m in colmap_matches
+             if m[0] in keypoints_to_idx[imidx0] and
+             m[1] in keypoints_to_idx[imidx1]])
         if len(final_matches) > 0:
             colmap_image_pairs.append(
                 (images[imidx0]['instance'], images[imidx1]['instance']))

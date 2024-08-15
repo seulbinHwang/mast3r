@@ -27,6 +27,7 @@ def bruteforce_reciprocal_nns(A, B, device='cuda', block_size=None, dist='l2'):
         dist_func = torch.cdist
         argmin = torch.min
     elif dist == 'dot':
+
         def dist_func(A, B):
             return A @ B.T
 
@@ -41,8 +42,14 @@ def bruteforce_reciprocal_nns(A, B, device='cuda', block_size=None, dist='l2'):
         _, nn_A = argmin(dists, dim=1)
         _, nn_B = argmin(dists, dim=0)
     else:
-        dis_A = torch.full((A.shape[0],), float('inf'), device=device, dtype=A.dtype)
-        dis_B = torch.full((B.shape[0],), float('inf'), device=device, dtype=B.dtype)
+        dis_A = torch.full((A.shape[0],),
+                           float('inf'),
+                           device=device,
+                           dtype=A.dtype)
+        dis_B = torch.full((B.shape[0],),
+                           float('inf'),
+                           device=device,
+                           dtype=B.dtype)
         nn_A = torch.full((A.shape[0],), -1, device=device, dtype=torch.int64)
         nn_B = torch.full((B.shape[0],), -1, device=device, dtype=torch.int64)
         number_of_iteration_A = math.ceil(A.shape[0] / block_size)
@@ -60,17 +67,24 @@ def bruteforce_reciprocal_nns(A, B, device='cuda', block_size=None, dist='l2'):
                 col_mask = min_A_i < dis_A[i * block_size:(i + 1) * block_size]
                 line_mask = min_B_j < dis_B[j * block_size:(j + 1) * block_size]
 
-                dis_A[i * block_size:(i + 1) * block_size][col_mask] = min_A_i[col_mask]
-                dis_B[j * block_size:(j + 1) * block_size][line_mask] = min_B_j[line_mask]
+                dis_A[i * block_size:(i + 1) *
+                      block_size][col_mask] = min_A_i[col_mask]
+                dis_B[j * block_size:(j + 1) *
+                      block_size][line_mask] = min_B_j[line_mask]
 
-                nn_A[i * block_size:(i + 1) * block_size][col_mask] = argmin_A_i[col_mask] + (j * block_size)
-                nn_B[j * block_size:(j + 1) * block_size][line_mask] = argmin_B_j[line_mask] + (i * block_size)
+                nn_A[i * block_size:(i + 1) *
+                     block_size][col_mask] = argmin_A_i[col_mask] + (j *
+                                                                     block_size)
+                nn_B[j * block_size:(j + 1) *
+                     block_size][line_mask] = argmin_B_j[line_mask] + (
+                         i * block_size)
     nn_A = nn_A.cpu().numpy()
     nn_B = nn_B.cpu().numpy()
     return nn_A, nn_B
 
 
 class cdistMatcher:
+
     def __init__(self, db_pts, device='cuda'):
         self.db_pts = db_pts.to(device)
         self.device = device
@@ -79,12 +93,20 @@ class cdistMatcher:
         assert k == 1
         if queries.numel() == 0:
             return None, []
-        nnA, nnB = bruteforce_reciprocal_nns(queries, self.db_pts, device=self.device, **kw)
+        nnA, nnB = bruteforce_reciprocal_nns(queries,
+                                             self.db_pts,
+                                             device=self.device,
+                                             **kw)
         dis = None
         return dis, nnA
 
 
-def merge_corres(idx1, idx2, shape1=None, shape2=None, ret_xy=True, ret_index=False):
+def merge_corres(idx1,
+                 idx2,
+                 shape1=None,
+                 shape2=None,
+                 ret_xy=True,
+                 ret_index=False):
     assert idx1.dtype == idx2.dtype == np.int32
 
     # unique and sort along idx1
@@ -106,8 +128,14 @@ def merge_corres(idx1, idx2, shape1=None, shape2=None, ret_xy=True, ret_index=Fa
     return xy1, xy2
 
 
-def fast_reciprocal_NNs(pts1, pts2, subsample_or_initxy1=8, ret_xy=True, pixel_tol=0, ret_basin=False,
-                        device='cuda', **matcher_kw):
+def fast_reciprocal_NNs(pts1,
+                        pts2,
+                        subsample_or_initxy1=8,
+                        ret_xy=True,
+                        pixel_tol=0,
+                        ret_basin=False,
+                        device='cuda',
+                        **matcher_kw):
     H1, W1, DIM1 = pts1.shape
     H2, W2, DIM2 = pts2.shape
     assert DIM1 == DIM2
@@ -182,13 +210,22 @@ def fast_reciprocal_NNs(pts1, pts2, subsample_or_initxy1=8, ret_xy=True, pixel_t
         converged = ~notyet  # converged correspondences
 
     # keep only unique correspondences, and sort on xy1
-    xy1, xy2 = merge_corres(xy1[converged], xy2[converged], (H1, W1), (H2, W2), ret_xy=ret_xy)
+    xy1, xy2 = merge_corres(xy1[converged],
+                            xy2[converged], (H1, W1), (H2, W2),
+                            ret_xy=ret_xy)
     if ret_basin:
         return xy1, xy2, basin
     return xy1, xy2
 
 
-def extract_correspondences_nonsym(A, B, confA, confB, subsample=8, device=None, ptmap_key='pred_desc', pixel_tol=0):
+def extract_correspondences_nonsym(A,
+                                   B,
+                                   confA,
+                                   confB,
+                                   subsample=8,
+                                   device=None,
+                                   ptmap_key='pred_desc',
+                                   pixel_tol=0):
     if '3d' in ptmap_key:
         opt = dict(device='cpu', workers=32)
     else:
@@ -201,15 +238,33 @@ def extract_correspondences_nonsym(A, B, confA, confB, subsample=8, device=None,
     HA, WA = A.shape[:2]
     HB, WB = B.shape[:2]
     if pixel_tol == 0:
-        nn1to2 = fast_reciprocal_NNs(A, B, subsample_or_initxy1=subsample, ret_xy=False, **opt)
-        nn2to1 = fast_reciprocal_NNs(B, A, subsample_or_initxy1=subsample, ret_xy=False, **opt)
+        nn1to2 = fast_reciprocal_NNs(A,
+                                     B,
+                                     subsample_or_initxy1=subsample,
+                                     ret_xy=False,
+                                     **opt)
+        nn2to1 = fast_reciprocal_NNs(B,
+                                     A,
+                                     subsample_or_initxy1=subsample,
+                                     ret_xy=False,
+                                     **opt)
     else:
         S = subsample
         yA, xA = np.mgrid[S // 2:HA:S, S // 2:WA:S].reshape(2, -1)
         yB, xB = np.mgrid[S // 2:HB:S, S // 2:WB:S].reshape(2, -1)
 
-        nn1to2 = fast_reciprocal_NNs(A, B, subsample_or_initxy1=(xA, yA), ret_xy=False, pixel_tol=pixel_tol, **opt)
-        nn2to1 = fast_reciprocal_NNs(B, A, subsample_or_initxy1=(xB, yB), ret_xy=False, pixel_tol=pixel_tol, **opt)
+        nn1to2 = fast_reciprocal_NNs(A,
+                                     B,
+                                     subsample_or_initxy1=(xA, yA),
+                                     ret_xy=False,
+                                     pixel_tol=pixel_tol,
+                                     **opt)
+        nn2to1 = fast_reciprocal_NNs(B,
+                                     A,
+                                     subsample_or_initxy1=(xB, yB),
+                                     ret_xy=False,
+                                     pixel_tol=pixel_tol,
+                                     **opt)
 
     idx1 = np.r_[nn1to2[0], nn2to1[1]]
     idx2 = np.r_[nn1to2[1], nn2to1[0]]
@@ -217,7 +272,10 @@ def extract_correspondences_nonsym(A, B, confA, confB, subsample=8, device=None,
     c1 = confA.ravel()[idx1]
     c2 = confB.ravel()[idx2]
 
-    xy1, xy2, idx = merge_corres(idx1, idx2, (HA, WA), (HB, WB), ret_xy=True, ret_index=True)
+    xy1, xy2, idx = merge_corres(idx1,
+                                 idx2, (HA, WA), (HB, WB),
+                                 ret_xy=True,
+                                 ret_index=True)
     conf = np.minimum(c1[idx], c2[idx])
     corres = (xy1.copy(), xy2.copy(), conf)
     return todevice(corres, device)

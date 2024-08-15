@@ -53,8 +53,10 @@ def _norm_windows(cell2, H2, W2, forced_resolution=None):
     width, height = _cell_size(cell2)
     width2, height2 = width.clip(max=W2), height.clip(max=H2)
     if forced_resolution is None:
-        width2[width < height] = (height2[width < height] * 3.01 / 4).clip(max=W2)
-        height2[width >= height] = (width2[width >= height] * 3.01 / 4).clip(max=H2)
+        width2[width < height] = (height2[width < height] * 3.01 /
+                                  4).clip(max=W2)
+        height2[width >= height] = (width2[width >= height] * 3.01 /
+                                    4).clip(max=H2)
     else:
         forced_H, forced_W = forced_resolution
         width2[:] = forced_W
@@ -82,7 +84,8 @@ def _norm_windows(cell2, H2, W2, forced_resolution=None):
 
     width, height = _cell_size(outcell)
     assert np.all(width == width2.astype(width.dtype)) and np.all(
-        height == height2.astype(height.dtype)), "Error, output is not of the expected shape."
+        height == height2.astype(
+            height.dtype)), "Error, output is not of the expected shape."
     assert np.all(width <= W2)
     assert np.all(height <= H2)
     return outcell
@@ -147,7 +150,8 @@ def _score_cell(cell1, H2, W2, p1, p2, min_corres=10, forced_resolution=None):
     cell2 = _norm_windows(cell2, H2, W2, forced_resolution=forced_resolution)
 
     # compute correspondence weights
-    corres_weights = _weight_pixels(cell1, p1, assigned) * _weight_pixels(cell2, p2, assigned)
+    corres_weights = _weight_pixels(cell1, p1, assigned) * _weight_pixels(
+        cell2, p2, assigned)
 
     # return a list of window pairs and assigned correspondences
     return cell1, cell2, corres_weights
@@ -181,13 +185,20 @@ def greedy_selection(corres_weights, target=0.9):
     return res
 
 
-def select_pairs_of_crops(img_q, img_b, pos2d_in_query, pos2d_in_ref, maxdim=512, overlap=.5, forced_resolution=None):
+def select_pairs_of_crops(img_q,
+                          img_b,
+                          pos2d_in_query,
+                          pos2d_in_ref,
+                          maxdim=512,
+                          overlap=.5,
+                          forced_resolution=None):
     # prepare the overlapping cells
     grid_q = _make_overlapping_grid(*img_q.shape[:2], maxdim, overlap)
     grid_b = _make_overlapping_grid(*img_b.shape[:2], maxdim, overlap)
 
     assert forced_resolution is None or len(forced_resolution) == 2
-    if isinstance(forced_resolution[0], int) or not len(forced_resolution[0]) == 2:
+    if isinstance(forced_resolution[0],
+                  int) or not len(forced_resolution[0]) == 2:
         forced_resolution1 = forced_resolution2 = forced_resolution
     else:
         assert len(forced_resolution[1]) == 2
@@ -195,12 +206,24 @@ def select_pairs_of_crops(img_q, img_b, pos2d_in_query, pos2d_in_ref, maxdim=512
         forced_resolution2 = forced_resolution[1]
 
     # Make sure crops respect constraints
-    grid_q = _norm_windows(grid_q.astype(float), *img_q.shape[:2], forced_resolution=forced_resolution1)
-    grid_b = _norm_windows(grid_b.astype(float), *img_b.shape[:2], forced_resolution=forced_resolution2)
+    grid_q = _norm_windows(grid_q.astype(float),
+                           *img_q.shape[:2],
+                           forced_resolution=forced_resolution1)
+    grid_b = _norm_windows(grid_b.astype(float),
+                           *img_b.shape[:2],
+                           forced_resolution=forced_resolution2)
 
     # score cells
-    pairs_q = _score_cell(grid_q, *img_b.shape[:2], pos2d_in_query, pos2d_in_ref, forced_resolution=forced_resolution2)
-    pairs_b = _score_cell(grid_b, *img_q.shape[:2], pos2d_in_ref, pos2d_in_query, forced_resolution=forced_resolution1)
+    pairs_q = _score_cell(grid_q,
+                          *img_b.shape[:2],
+                          pos2d_in_query,
+                          pos2d_in_ref,
+                          forced_resolution=forced_resolution2)
+    pairs_b = _score_cell(grid_b,
+                          *img_q.shape[:2],
+                          pos2d_in_ref,
+                          pos2d_in_query,
+                          forced_resolution=forced_resolution1)
     pairs_b = pairs_b[1], pairs_b[0], pairs_b[2]  # cellq, cellb, corres_weights
 
     # greedy selection until all correspondences are generated
@@ -210,5 +233,8 @@ def select_pairs_of_crops(img_q, img_b, pos2d_in_query, pos2d_in_ref, maxdim=512
     order = greedy_selection(corres_weights, target=0.9)
 
     for i in order:
-        def pair_tag(qi, bi): return (str(qi) + crop_tag(cell1[i]), str(bi) + crop_tag(cell2[i]))
+
+        def pair_tag(qi, bi):
+            return (str(qi) + crop_tag(cell1[i]), str(bi) + crop_tag(cell2[i]))
+
         yield cell1[i], cell2[i], pair_tag
